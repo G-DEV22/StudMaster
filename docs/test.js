@@ -452,71 +452,62 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function showResults(results) {
-    document.getElementById('scorePercentage').textContent = `${results.percentage}%`;
-    document.getElementById('correctCount').textContent = results.score;
-    document.getElementById('totalCount').textContent = results.total;
-    document.getElementById('timeTaken').textContent = timerSpan.textContent;
-    
-    const circle = document.getElementById('scoreCircle');
-    const circumference = 339.292;
-    const offset = circumference - (results.percentage / 100) * circumference;
-    circle.style.strokeDashoffset = offset;
-    
-    const resultsList = document.getElementById('resultsList');
-    resultsList.innerHTML = '';
-    
-    results.results.forEach((result, index) => {
-        const resultItem = document.createElement('div');
-
-        // Correct & user answers are already LETTERS ("A", "B", "C", "D")
-        const correctAnswerLetter = result.correct_answer;
-        const userAnswerLetter = result.user_answer || null;
-
-        const isCorrect = userAnswerLetter === correctAnswerLetter;
-
-        resultItem.className = `result-item ${isCorrect ? 'correct' : 'incorrect'}`;
-
-        const optionLabels = ['A', 'B', 'C', 'D'];
-        let optionsHTML = '';
-
-        result.options.forEach((option, optIndex) => {
-            const optionLetter = optionLabels[optIndex];
-            let className = '';
-
-            if (optionLetter === correctAnswerLetter) {
-                className = 'correct';
-            } else if (optionLetter === userAnswerLetter && !isCorrect) {
-                className = 'user';
+        document.getElementById('scorePercentage').textContent = `${results.percentage}%`;
+        document.getElementById('correctCount').textContent = results.score;
+        document.getElementById('totalCount').textContent = results.total;
+        document.getElementById('timeTaken').textContent = timerSpan.textContent;
+        
+        const circle = document.getElementById('scoreCircle');
+        const circumference = 339.292;
+        const offset = circumference - (results.percentage / 100) * circumference;
+        circle.style.strokeDashoffset = offset;
+        
+        const resultsList = document.getElementById('resultsList');
+        resultsList.innerHTML = '';
+        
+        results.results.forEach((result, index) => {
+            const resultItem = document.createElement('div');
+            
+            // Get the correct answer letter from the backend result
+            const correctAnswerLetter = result.correct_answer;
+            
+            // Get the user's answer letter from the backend result
+            let userAnswerLetter = null;
+            if (result.user_answer) {
+                const optionIndex = result.options.indexOf(result.user_answer);
+                if (optionIndex !== -1) {
+                    userAnswerLetter = ['A', 'B', 'C', 'D'][optionIndex];
+                }
             }
-
-            optionsHTML += `
-                <div class="result-option ${className}">
-                    <strong>${optionLetter}:</strong> ${option}
-                    ${optionLetter === correctAnswerLetter ? ' ✓' : ''}
-                    ${optionLetter === userAnswerLetter && !isCorrect ? ' ✗' : ''}
-                </div>
-            `;
-        });
-
-        resultItem.innerHTML = `
-            <div class="result-question">
-                <strong>Q${index + 1}:</strong> ${result.question}
-            </div>
-            <div class="result-options">
-                ${optionsHTML}
-            </div>
-            <div class="result-status ${isCorrect ? 'correct' : 'incorrect'}">
-                ${isCorrect ? '✓ Correct' : '✗ Incorrect'}
-                ${userAnswerLetter ? `(You selected: ${userAnswerLetter})` : '(Not answered)'}
-            </div>
-        `;
-
-        resultsList.appendChild(resultItem);
-    });
-
-    resultsModal.style.display = 'flex';
-}
-
+            
+            // Compare user's answer letter with correct answer letter from backend
+            const isCorrect = userAnswerLetter === correctAnswerLetter;
+            
+            resultItem.className = `result-item ${isCorrect ? 'correct' : 'incorrect'}`;
+            
+            const optionLabels = ['A', 'B', 'C', 'D'];
+            
+            let optionsHTML = '';
+            result.options.forEach((option, optIndex) => {
+                const optionLetter = optionLabels[optIndex];
+                let className = '';
+                
+                if (optionLetter === correctAnswerLetter) {
+                    className = 'correct';
+                } else if (optionLetter === userAnswerLetter && !isCorrect) {
+                    className = 'user';
+                } else if (optionLetter === userAnswerLetter && isCorrect) {
+                    className = 'correct';
+                }
+                
+                optionsHTML += `
+                    <div class="result-option ${className}">
+                        <strong>${optionLetter}:</strong> ${option}
+                        ${optionLetter === correctAnswerLetter ? ' ✓' : ''}
+                        ${optionLetter === userAnswerLetter && !isCorrect ? ' ✗' : ''}
+                    </div>
+                `;
+            });
             
             resultItem.innerHTML = `
                 <div class="result-question">
