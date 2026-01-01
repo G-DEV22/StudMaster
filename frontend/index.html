@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Practice - Learning Platform</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <h1>Exam Practice</h1>
+            </div>
+            <p class="tagline">AI-powered practice tests for students</p>
+        </header>
+
+        <main class="main-content">
+            <div class="learning-config">
+                <h2><i class="fas fa-cogs"></i> Learning Configuration</h2>
+                <p class="subtitle">Configure your practice test below</p>
+                
+                <form id="testConfigForm">
+                    <div class="form-section">
+                        <h3><i class="fas fa-layer-group"></i> Select Domain</h3>
+                        <div class="domain-options">
+                            <div class="domain-option">
+                                <input type="radio" id="school" name="domain" value="school" checked>
+                                <label for="school">
+                                    <i class="fas fa-school"></i>
+                                    <span class="domain-title">School</span>
+                                    <span class="domain-desc">Classes 6-12</span>
+                                </label>
+                            </div>
+                            <div class="domain-option">
+                                <input type="radio" id="college" name="domain" value="college">
+                                <label for="college">
+                                    <i class="fas fa-university"></i>
+                                    <span class="domain-title">College</span>
+                                    <span class="domain-desc">Undergraduate courses</span>
+                                </label>
+                            </div>
+                            <div class="domain-option">
+                                <input type="radio" id="competitive" name="domain" value="competitive">
+                                <label for="competitive">
+                                    <i class="fas fa-trophy"></i>
+                                    <span class="domain-title">Competitive</span>
+                                    <span class="domain-desc">Entrance exams</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section" id="schoolFields">
+                        <h3><i class="fas fa-user-graduate"></i> School Details</h3>
+                        <div class="form-group">
+                            <label for="classLevel"><i class="fas fa-chalkboard"></i> Class</label>
+                            <select id="classLevel" name="class_level" required>
+                                <option value="">Select Class</option>
+                                <option value="6">Class 6</option>
+                                <option value="7">Class 7</option>
+                                <option value="8">Class 8</option>
+                                <option value="9">Class 9</option>
+                                <option value="10">Class 10</option>
+                                <option value="11">Class 11</option>
+                                <option value="12">Class 12</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="subject"><i class="fas fa-book"></i> Subject</label>
+                            <select id="subject" name="subject" required>
+                                <option value="">Select Subject</option>
+                                <!-- Subjects populated by JavaScript -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-section" id="collegeFields" style="display: none;">
+                        <h3><i class="fas fa-user-graduate"></i> College Details</h3>
+                        <div class="form-group">
+                            <label for="course"><i class="fas fa-graduation-cap"></i> Course</label>
+                            <select id="course" name="course">
+                                <option value="">Select Course</option>
+                                <!-- Courses populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="semester"><i class="fas fa-calendar-alt"></i> Semester</label>
+                            <select id="semester" name="semester">
+                                <option value="">Select Semester</option>
+                                <option value="1">Semester 1</option>
+                                <option value="2">Semester 2</option>
+                                <option value="3">Semester 3</option>
+                                <option value="4">Semester 4</option>
+                                <option value="5">Semester 5</option>
+                                <option value="6">Semester 6</option>
+                                <option value="7">Semester 7</option>
+                                <option value="8">Semester 8</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-section" id="competitiveFields" style="display: none;">
+                        <h3><i class="fas fa-medal"></i> Competitive Exam Details</h3>
+                        <div class="form-group">
+                            <label for="exam"><i class="fas fa-file-alt"></i> Exam</label>
+                            <select id="exam" name="exam">
+                                <option value="">Select Exam</option>
+                                <!-- Exams populated by JavaScript -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3><i class="fas fa-tasks"></i> Test Details</h3>
+                        <div class="form-group">
+                            <label for="topic"><i class="fas fa-lightbulb"></i> Topic</label>
+                            <input type="text" id="topic" name="topic" 
+                                   placeholder="Enter specific topic (e.g., Algebra, Organic Chemistry, Mechanics)" 
+                                   required>
+                        </div>
+                        <div class="form-group">
+                            <label for="numQuestions"><i class="fas fa-question-circle"></i> Number of Questions</label>
+                            <div class="range-container">
+                                <input type="range" id="numQuestions" name="num_questions" 
+                                       min="5" max="20" value="10">
+                                <div class="range-labels">
+                                    <span>5</span>
+                                    <span id="questionCount">10</span>
+                                    <span>20</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" id="generateBtn" class="btn-primary">
+                            <i class="fas fa-brain"></i> Generate AI Practice Test
+                        </button>
+                    </div>
+                </form>
+
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner">
+                        <i class="fas fa-cog fa-spin"></i>
+                    </div>
+                    <p>Generating AI-powered questions for your test...</p>
+                    <p class="loading-note">This may take a few moments</p>
+                </div>
+
+                <div id="error" class="error-message" style="display: none;"></div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>Exam Practice &copy; 2024 | No login required | Practice freely</p>
+        </footer>
+    </div>
+
+    <script src="config.js"></script>
+</body>
+</html>
