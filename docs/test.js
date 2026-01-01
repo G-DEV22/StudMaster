@@ -165,7 +165,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Store the question for later use
             testState.questions[index] = {
                 question: data.question,
-                options: data.options
+                options: data.options,
+                correct_answer: data.correct_answer
             };
             
             // Update UI
@@ -181,13 +182,21 @@ document.addEventListener('DOMContentLoaded', function() {
             displayOptions(data.options, data.user_answer);
             
             // Update user answer in state
-            testState.userAnswers[index] = data.user_answer;
+            // Store as letter ("A", "B", "C", "D") instead of option text
+            let userAnswerLetter = null;
+            if (data.user_answer) {
+                const optionIndex = data.options.indexOf(data.user_answer);
+                if (optionIndex !== -1) {
+                    userAnswerLetter = ['A', 'B', 'C', 'D'][optionIndex];
+                }
+            }
+            testState.userAnswers[index] = userAnswerLetter;
             
             // Update navigation buttons
             updateNavigationButtons();
             
             // Update question status
-            updateQuestionStatus(data.user_answer);
+            updateQuestionStatus(userAnswerLetter);
             
             // Update indicators
             updateQuestionIndicators();
@@ -220,12 +229,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="option-text">${option}</div>
             `;
             
-            optionDiv.addEventListener('click', () => selectOption(option, optionDiv));
+            optionDiv.addEventListener('click', () => selectOption(option, optionDiv, optionLabels[index]));
             optionsContainer.appendChild(optionDiv);
         });
     }
     
-    function selectOption(option, optionElement) {
+    function selectOption(optionText, optionElement, optionLetter) {
         // Remove selected class from all options
         document.querySelectorAll('.option').forEach(opt => {
             opt.classList.remove('selected');
@@ -235,10 +244,10 @@ document.addEventListener('DOMContentLoaded', function() {
         optionElement.classList.add('selected');
         
         // Update answer status
-        updateQuestionStatus(option);
+        updateQuestionStatus(optionLetter);
         
-        // Save answer
-        testState.userAnswers[testState.currentQuestionIndex] = option;
+        // Save answer as letter ("A", "B", "C", "D")
+        testState.userAnswers[testState.currentQuestionIndex] = optionLetter;
         
         // Update indicator
         updateQuestionIndicators();
@@ -248,24 +257,33 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     async function saveCurrentAnswer() {
-        const currentAnswer = testState.userAnswers[testState.currentQuestionIndex];
+        const currentAnswerLetter = testState.userAnswers[testState.currentQuestionIndex];
         
-        if (currentAnswer) {
+        if (currentAnswerLetter) {
             try {
-                const response = await fetch(
-                    `${API_BASE_URL}/answer/${testState.sessionId}/${testState.currentQuestionIndex}`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ answer: currentAnswer })
+                // Convert letter back to option text for backend
+                const question = testState.questions[testState.currentQuestionIndex];
+                if (question && question.options) {
+                    const optionIndex = ['A', 'B', 'C', 'D'].indexOf(currentAnswerLetter);
+                    if (optionIndex !== -1 && question.options[optionIndex]) {
+                        const answerText = question.options[optionIndex];
+                        
+                        const response = await fetch(
+                            `${API_BASE_URL}/answer/${testState.sessionId}/${testState.currentQuestionIndex}`,
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ answer: answerText })
+                            }
+                        );
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            console.error('Error saving answer:', errorData);
+                        }
                     }
-                );
-                
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    console.error('Error saving answer:', errorData);
                 }
             } catch (error) {
                 console.error('Error saving answer:', error);
@@ -469,26 +487,41 @@ document.addEventListener('DOMContentLoaded', function() {
         
         results.results.forEach((result, index) => {
             const resultItem = document.createElement('div');
-            resultItem.className = `result-item ${result.is_correct ? 'correct' : 'incorrect'}`;
+            
+            // Convert user answer from text to letter for comparison
+            let userAnswerLetter = null;
+            if (result.user_answer) {
+                const optionIndex = result.options.indexOf(result.user_answer);
+                if (optionIndex !== -1) {
+                    userAnswerLetter = ['A', 'B', 'C', 'D'][optionIndex];
+                }
+            }
+            
+            // Correct comparison: compare letters directly
+            const isCorrect = userAnswerLetter === result.correct_answer;
+            
+            resultItem.className = `result-item ${isCorrect ? 'correct' : 'incorrect'}`;
             
             const optionLabels = ['A', 'B', 'C', 'D'];
             
             let optionsHTML = '';
             result.options.forEach((option, optIndex) => {
+                const optionLetter = optionLabels[optIndex];
                 let className = '';
-                if (option === result.correct_answer) {
+                
+                if (optionLetter === result.correct_answer) {
                     className = 'correct';
-                } else if (option === result.user_answer && !result.is_correct) {
+                } else if (optionLetter === userAnswerLetter && !isCorrect) {
                     className = 'user';
-                } else if (option === result.user_answer && result.is_correct) {
+                } else if (optionLetter === userAnswerLetter && isCorrect) {
                     className = 'correct'; // User selected the correct answer
                 }
                 
                 optionsHTML += `
                     <div class="result-option ${className}">
-                        <strong>${optionLabels[optIndex]}:</strong> ${option}
-                        ${option === result.correct_answer ? ' ✓' : ''}
-                        ${option === result.user_answer && !result.is_correct ? ' ✗' : ''}
+                        <strong>${optionLetter}:</strong> ${option}
+                        ${optionLetter === result.correct_answer ? ' ✓' : ''}
+                        ${optionLetter === userAnswerLetter && !isCorrect ? ' ✗' : ''}
                     </div>
                 `;
             });
@@ -500,9 +533,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="result-options">
                     ${optionsHTML}
                 </div>
-                <div class="result-status ${result.is_correct ? 'correct' : 'incorrect'}">
-                    ${result.is_correct ? '✓ Correct' : '✗ Incorrect'} 
-                    ${result.user_answer ? `(You selected: ${result.user_answer})` : '(Not answered)'}
+                <div class="result-status ${isCorrect ? 'correct' : 'incorrect'}">
+                    ${isCorrect ? '✓ Correct' : '✗ Incorrect'} 
+                    ${userAnswerLetter ? `(You selected: ${userAnswerLetter})` : '(Not answered)'}
                 </div>
             `;
             
