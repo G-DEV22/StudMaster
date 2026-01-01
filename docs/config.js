@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorDiv = document.getElementById('error');
     
     // Backend API URL
-    const API_BASE_URL = 'http://localhost:8000';
+    const API_BASE_URL = 'https://studmaster.onrender.com';
     
     // Update question count display
     numQuestionsSlider.addEventListener('input', function() {

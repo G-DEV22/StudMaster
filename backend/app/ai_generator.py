@@ -102,7 +102,7 @@ Return ONLY a valid JSON array with this exact structure:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "http://localhost:8000",
+            "HTTP-Referer": "https://studmaster.onrender.com",
         }
         
         data = {

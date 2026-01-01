@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     // Backend API URL
-    const API_BASE_URL = 'http://localhost:8000';
+    const API_BASE_URL = 'https://studmaster.onrender.com';
     
     // Initialize test
     initTest();
