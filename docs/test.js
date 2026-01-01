@@ -1,3 +1,4 @@
+// File: test.js
 // Test session script for test.html
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
@@ -471,10 +472,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get the correct answer letter from the backend result
             const correctAnswerLetter = result.correct_answer;
             
-            // Get the user's answer letter from the backend result
+            // Get the user's answer from the backend result
+            const userAnswerText = result.user_answer;
+            
+            // Convert user's answer text to letter
             let userAnswerLetter = null;
-            if (result.user_answer) {
-                const optionIndex = result.options.indexOf(result.user_answer);
+            if (userAnswerText) {
+                const optionIndex = result.options.indexOf(userAnswerText);
                 if (optionIndex !== -1) {
                     userAnswerLetter = ['A', 'B', 'C', 'D'][optionIndex];
                 }
