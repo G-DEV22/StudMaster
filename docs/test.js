@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const closeModalBtn = document.getElementById('closeModal');
     const newTestBtn = document.getElementById('newTestBtn');
     const backToHomeBtn = document.getElementById('backToHomeBtn');
-    const exitTestBtn = document.getElementById('exitTestBtn'); // FIX: Added Exit Test button reference
+    const exitTestBtn = document.getElementById('exitTestBtn');
     
     // Test state
     let testState = {
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
     closeModalBtn.addEventListener('click', () => resultsModal.style.display = 'none');
     newTestBtn.addEventListener('click', () => window.location.href = 'index.html');
     backToHomeBtn.addEventListener('click', goBackToHome);
-    exitTestBtn.addEventListener('click', exitTest); // FIX: Added Exit Test button event listener
+    exitTestBtn.addEventListener('click', exitTest);
     
     // Close modal when clicking outside
     window.addEventListener('click', (e) => {
@@ -182,7 +182,6 @@ document.addEventListener('DOMContentLoaded', function() {
             displayOptions(data.options, data.user_answer);
             
             // Update user answer in state
-            // Store as letter ("A", "B", "C", "D") instead of option text
             let userAnswerLetter = null;
             if (data.user_answer) {
                 const optionIndex = data.options.indexOf(data.user_answer);
@@ -374,19 +373,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // FIX: Added exitTest function
     function exitTest() {
-        // Ask for confirmation before exiting
         if (confirm('Are you sure you want to exit the test? All progress will be lost.')) {
-            // Clear session data
             localStorage.removeItem('currentTestSession');
             
-            // Stop the timer if it's running
             if (testState.timerInterval) {
                 clearInterval(testState.timerInterval);
             }
             
-            // Reset test state
             testState = {
                 sessionId: null,
                 config: null,
@@ -398,25 +392,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 timerInterval: null
             };
             
-            // Navigate back to home page
             window.location.href = 'index.html';
         }
     }
     
-    // FIX: Added goBackToHome function
     function goBackToHome() {
-        // Clear any session data
         localStorage.removeItem('currentTestSession');
         
-        // Stop the timer if it's running
         if (testState.timerInterval) {
             clearInterval(testState.timerInterval);
         }
         
-        // Close the results modal
         resultsModal.style.display = 'none';
         
-        // Redirect to home page
         window.location.href = 'index.html';
     }
     
@@ -438,10 +426,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            // Save current answer first
             await saveCurrentAnswer();
             
-            // Submit test
             const response = await fetch(
                 `${API_BASE_URL}/submit/${testState.sessionId}`,
                 { method: 'POST' }
@@ -454,13 +440,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const results = await response.json();
             
-            // Stop timer
             clearInterval(testState.timerInterval);
             
-            // Show results
             showResults(results);
             
-            // Clear session from localStorage
             localStorage.removeItem('currentTestSession');
             
         } catch (error) {
@@ -469,80 +452,80 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function showResults(results) {
-        // Update score display
         document.getElementById('scorePercentage').textContent = `${results.percentage}%`;
         document.getElementById('correctCount').textContent = results.score;
         document.getElementById('totalCount').textContent = results.total;
         document.getElementById('timeTaken').textContent = timerSpan.textContent;
         
-        // Animate score circle
         const circle = document.getElementById('scoreCircle');
-        const circumference = 339.292; // 2 * π * 54
+        const circumference = 339.292;
         const offset = circumference - (results.percentage / 100) * circumference;
         circle.style.strokeDashoffset = offset;
         
-        // Display detailed results
         const resultsList = document.getElementById('resultsList');
         resultsList.innerHTML = '';
         
         results.results.forEach((result, index) => {
             const resultItem = document.createElement('div');
             
-            // Convert user answer from text to letter for comparison
+            // Get the user's answer letter from the result data
             let userAnswerLetter = null;
-            if (result.user_answer) {
-                const optionIndex = result.options.indexOf(result.user_answer);
-                if (optionIndex !== -1) {
-                    userAnswerLetter = ['A', 'B', 'C', 'D'][optionIndex];
-                }
-            }
-            
-            // Correct comparison: compare letters directly
-            const isCorrect = userAnswerLetter === result.correct_answer;
-            
-            resultItem.className = `result-item ${isCorrect ? 'correct' : 'incorrect'}`;
-            
-            const optionLabels = ['A', 'B', 'C', 'D'];
-            
-            let optionsHTML = '';
-            result.options.forEach((option, optIndex) => {
-                const optionLetter = optionLabels[optIndex];
-                let className = '';
-                
-                if (optionLetter === result.correct_answer) {
-                    className = 'correct';
-                } else if (optionLetter === userAnswerLetter && !isCorrect) {
-                    className = 'user';
-                } else if (optionLetter === userAnswerLetter && isCorrect) {
-                    className = 'correct'; // User selected the correct answer
+            const question = testState.questions[index];
+            if (question && question.correct_answer) {
+                // Find what letter the user selected
+                const userAnswerText = result.user_answer;
+                if (userAnswerText) {
+                    const optionIndex = result.options.indexOf(userAnswerText);
+                    if (optionIndex !== -1) {
+                        userAnswerLetter = ['A', 'B', 'C', 'D'][optionIndex];
+                    }
                 }
                 
-                optionsHTML += `
-                    <div class="result-option ${className}">
-                        <strong>${optionLetter}:</strong> ${option}
-                        ${optionLetter === result.correct_answer ? ' ✓' : ''}
-                        ${optionLetter === userAnswerLetter && !isCorrect ? ' ✗' : ''}
+                // Compare user's answer letter with correct answer letter
+                const correctAnswerLetter = question.correct_answer;
+                const isCorrect = userAnswerLetter === correctAnswerLetter;
+                
+                resultItem.className = `result-item ${isCorrect ? 'correct' : 'incorrect'}`;
+                
+                const optionLabels = ['A', 'B', 'C', 'D'];
+                
+                let optionsHTML = '';
+                result.options.forEach((option, optIndex) => {
+                    const optionLetter = optionLabels[optIndex];
+                    let className = '';
+                    
+                    if (optionLetter === correctAnswerLetter) {
+                        className = 'correct';
+                    } else if (optionLetter === userAnswerLetter && !isCorrect) {
+                        className = 'user';
+                    }
+                    
+                    optionsHTML += `
+                        <div class="result-option ${className}">
+                            <strong>${optionLetter}:</strong> ${option}
+                            ${optionLetter === correctAnswerLetter ? ' ✓' : ''}
+                            ${optionLetter === userAnswerLetter && !isCorrect ? ' ✗' : ''}
+                        </div>
+                    `;
+                });
+                
+                resultItem.innerHTML = `
+                    <div class="result-question">
+                        <strong>Q${index + 1}:</strong> ${result.question}
+                    </div>
+                    <div class="result-options">
+                        ${optionsHTML}
+                    </div>
+                    <div class="result-status ${isCorrect ? 'correct' : 'incorrect'}">
+                        ${isCorrect ? '✓ Correct' : '✗ Incorrect'} 
+                        ${userAnswerLetter ? `(You selected: ${userAnswerLetter})` : '(Not answered)'}
                     </div>
                 `;
-            });
-            
-            resultItem.innerHTML = `
-                <div class="result-question">
-                    <strong>Q${index + 1}:</strong> ${result.question}
-                </div>
-                <div class="result-options">
-                    ${optionsHTML}
-                </div>
-                <div class="result-status ${isCorrect ? 'correct' : 'incorrect'}">
-                    ${isCorrect ? '✓ Correct' : '✗ Incorrect'} 
-                    ${userAnswerLetter ? `(You selected: ${userAnswerLetter})` : '(Not answered)'}
-                </div>
-            `;
-            
-            resultsList.appendChild(resultItem);
+                
+                resultsList.appendChild(resultItem);
+            }
         });
         
-        // Show modal
         resultsModal.style.display = 'flex';
     }
 });
