@@ -64,7 +64,7 @@ StudMaster/
 │   ├── .env.example
 │   ├── requirements.txt
 │
-├── frontend/
+├── docs/
 │   ├── index.html
 │   ├── style.css
 │   ├── test.html
@@ -111,7 +111,7 @@ uvicorn app.main:app --reload
 
 ### 3️⃣ Frontend Setup
 
-Simply open `frontend/index.html` in your browser.
+Simply open `docs/index.html` in your browser.
 
 ---
 
