@@ -111,7 +111,8 @@ async def get_question(session_id: str, question_index: int):
         "total_questions": len(session.questions),
         "question": question.question,
         "options": question.options,
-        "user_answer": session.user_answers[question_index]
+        "user_answer": session.user_answers[question_index],
+        "correct_answer": question.correct_answer  # FIX: Added correct_answer for frontend validation
     }
 
 @app.post("/answer/{session_id}/{question_index}")

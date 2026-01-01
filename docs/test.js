@@ -96,6 +96,9 @@ document.addEventListener('DOMContentLoaded', function() {
             testState.totalQuestions = summary.num_questions;
             testState.userAnswers = new Array(summary.num_questions).fill(null);
             
+            // FIX: Pre-load all questions to ensure we have access to all option texts
+            await preloadAllQuestions();
+            
             // Display test info
             displayTestInfo();
             
@@ -113,6 +116,41 @@ document.addEventListener('DOMContentLoaded', function() {
             alert(`Error: ${error.message}`);
             window.location.href = 'index.html';
         }
+    }
+    
+    // FIX: New function to pre-load all questions at startup
+    async function preloadAllQuestions() {
+        console.log('Pre-loading all questions...');
+        
+        for (let i = 0; i < testState.totalQuestions; i++) {
+            try {
+                const response = await fetch(
+                    `${API_BASE_URL}/question/${testState.sessionId}/${i}`
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    testState.questions[i] = {
+                        question: data.question,
+                        options: data.options,
+                        correct_answer: data.correct_answer
+                    };
+                    
+                    // Convert user answer from backend to letter format for state management
+                    if (data.user_answer) {
+                        const optionIndex = data.options.indexOf(data.user_answer);
+                        if (optionIndex !== -1) {
+                            testState.userAnswers[i] = ['A', 'B', 'C', 'D'][optionIndex];
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(`Error pre-loading question ${i}:`, error);
+            }
+        }
+        
+        console.log('Pre-loaded questions:', testState.questions.length);
+        console.log('Pre-loaded answers:', testState.userAnswers);
     }
     
     function displayTestInfo() {
@@ -144,59 +182,49 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadQuestion(index) {
         try {
             // Save current answer if changed
-            if (testState.questions[index]) {
-                await saveCurrentAnswer();
-            }
+            await saveCurrentAnswer();
             
             // Update current index
             testState.currentQuestionIndex = index;
             
-            // Fetch question from backend
-            const response = await fetch(
-                `${API_BASE_URL}/question/${testState.sessionId}/${index}`
-            );
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.detail || 'Failed to load question');
+            // Use pre-loaded question or fetch if not available
+            if (!testState.questions[index]) {
+                const response = await fetch(
+                    `${API_BASE_URL}/question/${testState.sessionId}/${index}`
+                );
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || 'Failed to load question');
+                }
+                
+                const data = await response.json();
+                testState.questions[index] = {
+                    question: data.question,
+                    options: data.options,
+                    correct_answer: data.correct_answer
+                };
             }
             
-            const data = await response.json();
-            
-            // Store the question for later use
-            testState.questions[index] = {
-                question: data.question,
-                options: data.options,
-                correct_answer: data.correct_answer
-            };
+            const question = testState.questions[index];
             
             // Update UI
             currentQuestionSpan.textContent = index + 1;
             questionNumberSpan.textContent = index + 1;
-            questionTextDiv.textContent = data.question;
+            questionTextDiv.textContent = question.question;
             
             // Update progress
             const progress = ((index + 1) / testState.totalQuestions) * 100;
             progressFill.style.width = `${progress}%`;
             
             // Display options
-            displayOptions(data.options, data.user_answer);
-            
-            // Update user answer in state
-            let userAnswerLetter = null;
-            if (data.user_answer) {
-                const optionIndex = data.options.indexOf(data.user_answer);
-                if (optionIndex !== -1) {
-                    userAnswerLetter = ['A', 'B', 'C', 'D'][optionIndex];
-                }
-            }
-            testState.userAnswers[index] = userAnswerLetter;
+            displayOptions(question.options, index);
             
             // Update navigation buttons
             updateNavigationButtons();
             
             // Update question status
-            updateQuestionStatus(userAnswerLetter);
+            updateQuestionStatus(testState.userAnswers[index]);
             
             // Update indicators
             updateQuestionIndicators();
@@ -210,31 +238,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function displayOptions(options, selectedAnswer) {
+    function displayOptions(options, questionIndex) {
         optionsContainer.innerHTML = '';
         
         const optionLabels = ['A', 'B', 'C', 'D'];
+        const currentAnswerLetter = testState.userAnswers[questionIndex];
         
         options.forEach((option, index) => {
             const optionDiv = document.createElement('div');
             optionDiv.className = 'option';
             
-            if (option === selectedAnswer) {
+            // Check if this option corresponds to the user's answer
+            const optionLetter = optionLabels[index];
+            if (optionLetter === currentAnswerLetter) {
                 optionDiv.classList.add('selected');
             }
             
             optionDiv.innerHTML = `
-                <div class="option-label">${optionLabels[index]}</div>
+                <div class="option-label">${optionLetter}</div>
                 <div class="option-radio"></div>
                 <div class="option-text">${option}</div>
             `;
             
-            optionDiv.addEventListener('click', () => selectOption(option, optionDiv, optionLabels[index]));
+            optionDiv.addEventListener('click', () => selectOption(option, optionDiv, optionLetter, questionIndex));
             optionsContainer.appendChild(optionDiv);
         });
     }
     
-    function selectOption(optionText, optionElement, optionLetter) {
+    function selectOption(optionText, optionElement, optionLetter, questionIndex) {
         // Remove selected class from all options
         document.querySelectorAll('.option').forEach(opt => {
             opt.classList.remove('selected');
@@ -247,7 +278,10 @@ document.addEventListener('DOMContentLoaded', function() {
         updateQuestionStatus(optionLetter);
         
         // Save answer as letter ("A", "B", "C", "D")
-        testState.userAnswers[testState.currentQuestionIndex] = optionLetter;
+        testState.userAnswers[questionIndex] = optionLetter;
+        
+        // Save to backend immediately
+        saveAnswerToBackend(questionIndex, optionText);
         
         // Update indicator
         updateQuestionIndicators();
@@ -256,37 +290,42 @@ document.addEventListener('DOMContentLoaded', function() {
         checkAllAnswered();
     }
     
-    async function saveCurrentAnswer() {
-        const currentAnswerLetter = testState.userAnswers[testState.currentQuestionIndex];
-        
-        if (currentAnswerLetter) {
-            try {
-                // Convert letter back to option text for backend
-                const question = testState.questions[testState.currentQuestionIndex];
-                if (question && question.options) {
-                    const optionIndex = ['A', 'B', 'C', 'D'].indexOf(currentAnswerLetter);
-                    if (optionIndex !== -1 && question.options[optionIndex]) {
-                        const answerText = question.options[optionIndex];
-                        
-                        const response = await fetch(
-                            `${API_BASE_URL}/answer/${testState.sessionId}/${testState.currentQuestionIndex}`,
-                            {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({ answer: answerText })
-                            }
-                        );
-                        
-                        if (!response.ok) {
-                            const errorData = await response.json().catch(() => ({}));
-                            console.error('Error saving answer:', errorData);
-                        }
-                    }
+    // FIX: New function to save answer to backend immediately when selected
+    async function saveAnswerToBackend(questionIndex, answerText) {
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/answer/${testState.sessionId}/${questionIndex}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ answer: answerText })
                 }
-            } catch (error) {
-                console.error('Error saving answer:', error);
+            );
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Error saving answer to backend:', errorData);
+            } else {
+                console.log(`Answer saved for question ${questionIndex}:`, answerText);
+            }
+        } catch (error) {
+            console.error('Error saving answer to backend:', error);
+        }
+    }
+    
+    async function saveCurrentAnswer() {
+        const currentIndex = testState.currentQuestionIndex;
+        const currentAnswerLetter = testState.userAnswers[currentIndex];
+        
+        if (currentAnswerLetter && testState.questions[currentIndex]) {
+            const question = testState.questions[currentIndex];
+            const optionIndex = ['A', 'B', 'C', 'D'].indexOf(currentAnswerLetter);
+            
+            if (optionIndex !== -1 && question.options[optionIndex]) {
+                const answerText = question.options[optionIndex];
+                await saveAnswerToBackend(currentIndex, answerText);
             }
         }
     }
@@ -322,6 +361,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (i === 0) {
                 indicator.classList.add('current');
+            }
+            
+            if (testState.userAnswers[i]) {
+                indicator.classList.add('answered');
             }
             
             indicator.addEventListener('click', () => {
@@ -427,7 +470,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            await saveCurrentAnswer();
+            // Ensure all answers are saved to backend before submission
+            await saveAllAnswersToBackend();
             
             const response = await fetch(
                 `${API_BASE_URL}/submit/${testState.sessionId}`,
@@ -452,6 +496,43 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // FIX: New function to save all answers to backend before submission
+    async function saveAllAnswersToBackend() {
+        console.log('Saving all answers to backend before submission...');
+        
+        for (let i = 0; i < testState.totalQuestions; i++) {
+            const answerLetter = testState.userAnswers[i];
+            
+            if (answerLetter && testState.questions[i]) {
+                const question = testState.questions[i];
+                const optionIndex = ['A', 'B', 'C', 'D'].indexOf(answerLetter);
+                
+                if (optionIndex !== -1 && question.options[optionIndex]) {
+                    const answerText = question.options[optionIndex];
+                    
+                    try {
+                        const response = await fetch(
+                            `${API_BASE_URL}/answer/${testState.sessionId}/${i}`,
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ answer: answerText })
+                            }
+                        );
+                        
+                        if (response.ok) {
+                            console.log(`Saved answer for question ${i}:`, answerText);
+                        }
+                    } catch (error) {
+                        console.error(`Error saving answer for question ${i}:`, error);
+                    }
+                }
+            }
+        }
+    }
+    
     function showResults(results) {
         document.getElementById('scorePercentage').textContent = `${results.percentage}%`;
         document.getElementById('correctCount').textContent = results.score;
@@ -469,23 +550,7 @@ document.addEventListener('DOMContentLoaded', function() {
         results.results.forEach((result, index) => {
             const resultItem = document.createElement('div');
             
-            // Get the correct answer letter from the backend result
-            const correctAnswerLetter = result.correct_answer;
-            
-            // Get the user's answer from the backend result
-            const userAnswerText = result.user_answer;
-            
-            // Convert user's answer text to letter
-            let userAnswerLetter = null;
-            if (userAnswerText) {
-                const optionIndex = result.options.indexOf(userAnswerText);
-                if (optionIndex !== -1) {
-                    userAnswerLetter = ['A', 'B', 'C', 'D'][optionIndex];
-                }
-            }
-            
-            // Compare user's answer letter with correct answer letter from backend
-            const isCorrect = userAnswerLetter === correctAnswerLetter;
+            const isCorrect = result.is_correct;
             
             resultItem.className = `result-item ${isCorrect ? 'correct' : 'incorrect'}`;
             
@@ -496,19 +561,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 const optionLetter = optionLabels[optIndex];
                 let className = '';
                 
-                if (optionLetter === correctAnswerLetter) {
+                if (option === result.correct_answer) {
                     className = 'correct';
-                } else if (optionLetter === userAnswerLetter && !isCorrect) {
+                } else if (option === result.user_answer && !isCorrect) {
                     className = 'user';
-                } else if (optionLetter === userAnswerLetter && isCorrect) {
+                } else if (option === result.user_answer && isCorrect) {
                     className = 'correct';
                 }
                 
                 optionsHTML += `
                     <div class="result-option ${className}">
                         <strong>${optionLetter}:</strong> ${option}
-                        ${optionLetter === correctAnswerLetter ? ' ✓' : ''}
-                        ${optionLetter === userAnswerLetter && !isCorrect ? ' ✗' : ''}
+                        ${option === result.correct_answer ? ' ✓' : ''}
+                        ${option === result.user_answer && !isCorrect ? ' ✗' : ''}
                     </div>
                 `;
             });
@@ -522,7 +587,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="result-status ${isCorrect ? 'correct' : 'incorrect'}">
                     ${isCorrect ? '✓ Correct' : '✗ Incorrect'} 
-                    ${userAnswerLetter ? `(You selected: ${userAnswerLetter})` : '(Not answered)'}
+                    ${result.user_answer ? `(You selected: ${result.user_answer})` : '(Not answered)'}
                 </div>
             `;
             
