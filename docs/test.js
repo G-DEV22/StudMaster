@@ -468,62 +468,61 @@ document.addEventListener('DOMContentLoaded', function() {
         results.results.forEach((result, index) => {
             const resultItem = document.createElement('div');
             
-            // Get the user's answer letter from the result data
+            // Get the correct answer letter from the backend result
+            const correctAnswerLetter = result.correct_answer;
+            
+            // Get the user's answer letter from the backend result
             let userAnswerLetter = null;
-            const question = testState.questions[index];
-            if (question && question.correct_answer) {
-                // Find what letter the user selected
-                const userAnswerText = result.user_answer;
-                if (userAnswerText) {
-                    const optionIndex = result.options.indexOf(userAnswerText);
-                    if (optionIndex !== -1) {
-                        userAnswerLetter = ['A', 'B', 'C', 'D'][optionIndex];
-                    }
+            if (result.user_answer) {
+                const optionIndex = result.options.indexOf(result.user_answer);
+                if (optionIndex !== -1) {
+                    userAnswerLetter = ['A', 'B', 'C', 'D'][optionIndex];
+                }
+            }
+            
+            // Compare user's answer letter with correct answer letter from backend
+            const isCorrect = userAnswerLetter === correctAnswerLetter;
+            
+            resultItem.className = `result-item ${isCorrect ? 'correct' : 'incorrect'}`;
+            
+            const optionLabels = ['A', 'B', 'C', 'D'];
+            
+            let optionsHTML = '';
+            result.options.forEach((option, optIndex) => {
+                const optionLetter = optionLabels[optIndex];
+                let className = '';
+                
+                if (optionLetter === correctAnswerLetter) {
+                    className = 'correct';
+                } else if (optionLetter === userAnswerLetter && !isCorrect) {
+                    className = 'user';
+                } else if (optionLetter === userAnswerLetter && isCorrect) {
+                    className = 'correct';
                 }
                 
-                // Compare user's answer letter with correct answer letter
-                const correctAnswerLetter = question.correct_answer;
-                const isCorrect = userAnswerLetter === correctAnswerLetter;
-                
-                resultItem.className = `result-item ${isCorrect ? 'correct' : 'incorrect'}`;
-                
-                const optionLabels = ['A', 'B', 'C', 'D'];
-                
-                let optionsHTML = '';
-                result.options.forEach((option, optIndex) => {
-                    const optionLetter = optionLabels[optIndex];
-                    let className = '';
-                    
-                    if (optionLetter === correctAnswerLetter) {
-                        className = 'correct';
-                    } else if (optionLetter === userAnswerLetter && !isCorrect) {
-                        className = 'user';
-                    }
-                    
-                    optionsHTML += `
-                        <div class="result-option ${className}">
-                            <strong>${optionLetter}:</strong> ${option}
-                            ${optionLetter === correctAnswerLetter ? ' ✓' : ''}
-                            ${optionLetter === userAnswerLetter && !isCorrect ? ' ✗' : ''}
-                        </div>
-                    `;
-                });
-                
-                resultItem.innerHTML = `
-                    <div class="result-question">
-                        <strong>Q${index + 1}:</strong> ${result.question}
-                    </div>
-                    <div class="result-options">
-                        ${optionsHTML}
-                    </div>
-                    <div class="result-status ${isCorrect ? 'correct' : 'incorrect'}">
-                        ${isCorrect ? '✓ Correct' : '✗ Incorrect'} 
-                        ${userAnswerLetter ? `(You selected: ${userAnswerLetter})` : '(Not answered)'}
+                optionsHTML += `
+                    <div class="result-option ${className}">
+                        <strong>${optionLetter}:</strong> ${option}
+                        ${optionLetter === correctAnswerLetter ? ' ✓' : ''}
+                        ${optionLetter === userAnswerLetter && !isCorrect ? ' ✗' : ''}
                     </div>
                 `;
-                
-                resultsList.appendChild(resultItem);
-            }
+            });
+            
+            resultItem.innerHTML = `
+                <div class="result-question">
+                    <strong>Q${index + 1}:</strong> ${result.question}
+                </div>
+                <div class="result-options">
+                    ${optionsHTML}
+                </div>
+                <div class="result-status ${isCorrect ? 'correct' : 'incorrect'}">
+                    ${isCorrect ? '✓ Correct' : '✗ Incorrect'} 
+                    ${userAnswerLetter ? `(You selected: ${userAnswerLetter})` : '(Not answered)'}
+                </div>
+            `;
+            
+            resultsList.appendChild(resultItem);
         });
         
         resultsModal.style.display = 'flex';
